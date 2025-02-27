@@ -27,7 +27,7 @@ javascript:(function() {
     console.log("List elements found:", listElements);
 
     let foundElement = null;
-    let foundText = null;
+    let foundAuthor = null;
 
     console.log("Starting loop through list elements...");
 
@@ -64,7 +64,7 @@ javascript:(function() {
 
         if (textContent !== "system") {
           foundElement = createdByElement;
-          foundText = textContent;
+          foundAuthor = textContent;
           console.log("Text content is not 'system'. Element found.");
           break; // Exit the loop
         } else {
@@ -78,7 +78,7 @@ javascript:(function() {
     console.log("Loop finished.");
 
     if (foundElement) {
-      console.log("Element with class 'sn-card-component-createdby' found. Text:", foundText);
+      console.log("Element with class 'sn-card-component-createdby' found. Text:", foundAuthor);
 
       // Find the parent with class "h-card h-card_md h-card_comments"
       let hCardParent = foundElement;
@@ -169,11 +169,22 @@ javascript:(function() {
       console.log("Timestamp:", foundTimestamp);
       console.log("Last Reply:", foundLastReply);
 
-      alert("Timestamp: " + foundTimestamp + "\nLast Reply: " + foundLastReply);
+      alert("Author: " + foundAuthor + "\nTimestamp: " + foundTimestamp + "\nLast Reply: " + foundLastReply);
     } else {
       console.log("No element with class 'sn-card-component-createdby' found with text not equal to 'system'.");
       alert("No element with class 'sn-card-component-createdby' found with text not equal to 'system'.");
     }
+
+    // TODO: 
+    // if foundAuthor contains the string "xtremax"
+      // if no, check contents of reply
+        // if reply says to close, output Closed due to Request
+        // if reply doesnt say to close, output User replied on <date>
+      // if yes, check if reply is before current date
+        // if reply timestamp is before current date, check content of message.
+        // if content of message is not a follow up, output Follow Up 1
+        // if content of message is Follow Up 1, output Follow Up 2
+        // if content of message is Follow Up 2, output Closed due to Inactivity
 
     console.log("Script completed successfully.");
 
