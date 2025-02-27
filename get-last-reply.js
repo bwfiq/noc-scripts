@@ -79,7 +79,97 @@ javascript:(function() {
 
     if (foundElement) {
       console.log("Element with class 'sn-card-component-createdby' found. Text:", foundText);
-      alert("Element with class 'sn-card-component-createdby' found: " + foundText);
+
+      // Find the parent with class "h-card h-card_md h-card_comments"
+      let hCardParent = foundElement;
+      while (hCardParent && (!hCardParent.classList || !hCardParent.classList.contains("h-card") || !hCardParent.classList.contains("h-card_md") || !hCardParent.classList.contains("h-card_comments"))) {
+        hCardParent = hCardParent.parentElement;
+      }
+
+      if (!hCardParent) {
+        console.error("Error: Could not find parent element with class 'h-card h-card_md h-card_comments'.");
+        alert("Error: Could not find parent element with class 'h-card h-card_md h-card_comments'.");
+        return;
+      }
+
+      console.log("Found hCardParent:", hCardParent);
+
+      // Recursive function to find element with class date-calendar
+      function findDateCalendar(element) {
+        if (!element) {
+          return null;
+        }
+
+        if (element.classList && element.classList.contains("date-calendar")) {
+          console.log("Found 'date-calendar' element:", element);
+          return element;
+          return element;
+        }
+
+        for (let i = 0; i < element.children.length; i++) {
+          const found = findDateCalendar(element.children[i]);
+          if (found) {
+            return found;
+          }
+        }
+        return null;
+      }
+
+      // Recursive function to find element with class "sn-widget-textblock-body sn-widget-textblock-body_formatted"
+      function findLastReplyElement(element) {
+        if (!element) {
+          return null;
+        }
+
+        if (element.classList && element.classList.contains("sn-widget-textblock-body") && element.classList.contains("sn-widget-textblock-body_formatted")) {
+          console.log("Found 'sn-widget-textblock-body sn-widget-textblock-body_formatted' element:", element);
+          return element;
+        }
+
+        for (let i = 0; i < element.children.length; i++) {
+          const found = findLastReplyElement(element.children[i]);
+          if (found) {
+            return found;
+          }
+        }
+
+        return null;
+      }
+
+      const dateCalendarElement = findDateCalendar(hCardParent);
+      const lastReplyElement = findLastReplyElement(hCardParent);
+
+      let foundTimestamp = dateCalendarElement ? dateCalendarElement.textContent.trim() : "Timestamp not found";
+      let foundLastReply = "Last Reply not found"; // Default value if not found
+
+      if (lastReplyElement) {
+          console.log("Attempting to get text content from the shadow DOM");
+          const shadowRoot = lastReplyElement.shadowRoot;
+
+          if (shadowRoot) {
+              console.log("Shadow DOM found");
+              const divElement = shadowRoot.querySelector("div");
+              if(divElement) {
+                console.log("Div element inside shadow DOM found");
+                foundLastReply = ""; // Initialize as empty string
+                for (let i = 0; i < divElement.children.length; i++) { // Go through each child (p elements)
+                    foundLastReply += divElement.children[i].textContent.trim() + " "; //Concat all paragraph elements
+                }
+                foundLastReply = foundLastReply.trim(); // Remove trailing space
+              } else {
+                console.log("Div element not found inside shadow DOM");
+              }
+          } else {
+              console.log("Shadow DOM not found.  Attempting textContent from the original element.")
+              foundLastReply = lastReplyElement.textContent.trim(); //Fallback if there is no shadow DOM
+          }
+
+      }
+
+      console.log("Timestamp:", foundTimestamp);
+      console.log("Last Reply:", foundLastReply);
+
+      alert("Timestamp: " + foundTimestamp + "\nLast Reply: " + foundLastReply);
     } else {
       console.log("No element with class 'sn-card-component-createdby' found with text not equal to 'system'.");
       alert("No element with class 'sn-card-component-createdby' found with text not equal to 'system'.");
