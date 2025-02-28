@@ -68,7 +68,16 @@ Sub ProcessWebsitesFromTextFile()
     ' ** 3. Split the file content into a website list
     websiteList = Split(fileContent, ",")
 
-    ' ** 4. Process each website
+    ' ** 4. Process each website and save it to file
+    Dim subfolderPath As String
+    subfolderPath = ThisWorkbook.Path & "\OutputFiles" ' Name of the subfolder
+
+    ' Check if the subfolder exists. If not, create it.
+    If Dir(subfolderPath, vbDirectory) = "" Then
+        MkDir subfolderPath ' Creates the subfolder
+    End If
+
+    ' Loop through all the specified websites
     For Each website In websiteList
         website = Trim(website)
 
@@ -110,7 +119,7 @@ Sub ProcessWebsitesFromTextFile()
                     If IsEmpty(newWb.Sheets(1).Cells(i, "C").Value) Then
                         missingColumns = missingColumns & "Project Code, "
                     End If
-                    
+
                     ' Tier Checking
                     Dim tierValue As String
                     Dim tierCheck As Boolean ' Flag to determine if the tier condition is met
@@ -125,7 +134,7 @@ Sub ProcessWebsitesFromTextFile()
                     End If
 
                     ' Check if the tier condition is met AND if K, L, or M are empty
-                    If tierCheck Then                        
+                    If tierCheck Then
                         ' Check if CDN Cache value is available
                         If IsEmpty(newWb.Sheets(1).Cells(i, "K").Value) Then
                             missingColumns = missingColumns & "K, "
@@ -173,16 +182,15 @@ Sub ProcessWebsitesFromTextFile()
 
                 ' ** MODIFIED SAVE FILE NAME **
                 'Get the value from column C of the FIRST visible row (after the header) in the filtered range
-                ' TODO: If columnC is empty, make it output a error message so I can manually fix it.
-                Dim columnCValue As String
+                Dim projectCode As String
                 On Error Resume Next 'In case no visible rows exist after filter
-                columnCValue = utilSheet.Range("C2:C" & lastRow).SpecialCells(xlCellTypeVisible)(1, 1).Value
+                projectCode = utilSheet.Range("C2:C" & lastRow).SpecialCells(xlCellTypeVisible)(1, 1).Value
                 On Error GoTo 0
 
-                If columnCValue = "" Then
-                    saveFileName = websiteType & " - Additional Data Transfer - " & website & ".xlsx"
+                If websiteType <> "Native" Then
+                    saveFileName = subfolderPath & "\" & websiteType & " - Additional Data Transfer - " & website & " - " & projectCode & ".xlsx"
                 Else
-                    saveFileName = websiteType & " - Additional Data Transfer - " & website & " - " & columnCValue & ".xlsx"
+                    saveFileName = subfolderPath & "\" & websiteType & " - Additional Data Transfer - " & website & ".xlsx"
                 End If
 
 
