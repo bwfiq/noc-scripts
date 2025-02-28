@@ -15,6 +15,9 @@ Sub ProcessWebsitesFromTextFile()
     Dim filterColumn As Long ' Column to filter website from source data (Native=3, NextGen=4)
     Dim tierColumn As Long    ' Column to get tier data (Native=4, NextGen=5)
     Dim websiteType As String
+    
+    ' Tell Excel not to Update the screen
+    Application.ScreenUpdating = False
 
     ' ** Input Box to Choose Native or NextGen **
     processType = InputBox("Enter 'Native' or 'NextGen':", "Select Process Type", "Native")
@@ -152,8 +155,6 @@ Sub ProcessWebsitesFromTextFile()
                 ' ** Clean up **
                 ' In this section, we will clean up the data for the agencies
                 
-                ' TODO: Calculate the data transfer cost column values (=H1*1490)
-                
                 ' TODO: Change the Jira Ticket Links
                 
                 ' ** Delete Columns **
@@ -217,5 +218,6 @@ Sub ProcessWebsitesFromTextFile()
         MsgBox "Done processing the websites. No missing data found.", vbInformation
     End If
 
+    ' Tell Excel to continue updating the screen to show the user the result
+    Application.ScreenUpdating = True
 End Sub
-
