@@ -99,12 +99,6 @@ Sub ProcessWebsitesFromTextFile()
                 'Copy filtered data to the new workbook
                 filterRange.SpecialCells(xlCellTypeVisible).Copy newWb.Sheets(1).Range("A1")
 
-                'Autofit columns and rows
-                With newWb.Sheets(1)
-                    .Columns.AutoFit
-                    .Rows.AutoFit
-                End With
-
                 ' ** Data Validation Loop **
                 ' Here we check if any data is missing that should be included in the final output
                 Dim sourceLastRow As Long
@@ -157,15 +151,40 @@ Sub ProcessWebsitesFromTextFile()
                         ' Remove the trailing comma and space
                         missingColumns = Left(missingColumns, Len(missingColumns) - 2)
 
-                        missingDataWebsites = missingDataWebsites & "Row " & i & ": " & website & " (Missing data: " & missingColumns & ")" & Chr(13) & Chr(10) ' Add website and missing columns to the list
-                        'Exit For ' Break early if we find one row with missing data
+                        missingDataWebsites = missingDataWebsites & website & " (Missing data: " & missingColumns & ")" & Chr(13) & Chr(10) ' Add website and missing columns to the list
+                        Exit For ' Break early if we find one row with missing data
                     End If
                 Next i
 
                 ' ** Clean up **
                 ' In this section, we will clean up the data for the agencies
-                
-                ' TODO: Change the Jira Ticket Links
+
+                ' ** Jira Ticket Link Update **
+                ' Loop through each row in the new workbook and modify the Jira links
+                Dim jiraLastRow As Long, j As Long
+                jiraLastRow = newWb.Sheets(1).Cells(Rows.Count, "A").End(xlUp).Row ' Or use column Q if column A might have blank cells
+
+                For j = 2 To jiraLastRow ' Skip header row
+                    Dim jiraLink As String, extractedValue As String
+
+                    ' ** Remove Hyperlinks from Column Q **
+                    If newWb.Sheets(1).Cells(j, "Q").Hyperlinks.Count > 0 Then
+                        newWb.Sheets(1).Cells(j, "Q").Hyperlinks.Delete
+                    End If
+
+                    jiraLink = newWb.Sheets(1).Cells(j, "Q").Value ' Get value from column Q
+
+                    ' Check if the cell is not empty and is a valid URL
+                    If Not IsEmpty(jiraLink) And InStr(1, jiraLink, "https://jira.cwp2.cloudvanti.com/browse/") > 0 Then
+
+                        ' Extract the "$SOMETHING" portion
+                        extractedValue = Mid(jiraLink, InStrRev(jiraLink, "/") + 1)
+
+                        ' Construct the new Jira link
+                        newWb.Sheets(1).Cells(j, "Q").Value = "https://jira.cwp2.cloudvanti.com/servicedesk/customer/portal/1/" & extractedValue
+                    End If
+                Next j
+
                 
                 ' ** Delete Columns **
                 ' Make sure to delete RIGHT TO LEFT so columns won't shift
@@ -178,6 +197,31 @@ Sub ProcessWebsitesFromTextFile()
                     .Columns("O").Delete
                     .Columns("N").Delete
                     .Columns("A").Delete
+                End With
+
+                ' ** FORMATTING **
+                With newWb.Sheets(1).Range("A1:M" & newWb.Sheets(1).UsedRange.Rows.Count) ' Limit to columns A:M
+                    ' ** All Cells Formatting **
+                    .Cells.Interior.Color = RGB(255, 255, 255) ' White
+                    .Cells.Font.Color = RGB(0, 0, 0) ' Black
+                    .Cells.Font.Name = "Calibri"
+                    .Cells.Font.Size = 12
+                    .VerticalAlignment = xlCenter
+                    .HorizontalAlignment = xlCenter
+                    .Borders.LineStyle = xlContinuous
+                    .Borders.Weight = xlThin
+                End With
+
+                ' ** Header Row Formatting **
+                With newWb.Sheets(1).Range("A1:M1") ' Limit to columns A:M in the first row
+                    .Interior.Color = RGB(0, 148, 200)  ' Light Blue:  Could use a different shade of blue if desired.
+                    .Font.Color = RGB(255, 255, 255) ' White
+                End With
+
+                'Autofit columns and rows
+                With newWb.Sheets(1)
+                    .Columns.AutoFit
+                    .Rows.AutoFit
                 End With
 
                 ' ** MODIFIED SAVE FILE NAME **
@@ -230,3 +274,4 @@ Sub ProcessWebsitesFromTextFile()
     ' Tell Excel to continue updating the screen to show the user the result
     Application.ScreenUpdating = True
 End Sub
+
