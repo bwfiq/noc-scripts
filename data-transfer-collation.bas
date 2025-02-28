@@ -15,7 +15,8 @@ Sub ProcessWebsitesFromTextFile()
     Dim filterColumn As Long ' Column to filter website from source data (Native=3, NextGen=4)
     Dim tierColumn As Long    ' Column to get tier data (Native=4, NextGen=5)
     Dim websiteType As String
-    
+    Dim rowsFound As Boolean ' Flag to track if any rows were found for the website
+
     ' Tell Excel not to Update the screen
     Application.ScreenUpdating = False
 
@@ -31,8 +32,6 @@ Sub ProcessWebsitesFromTextFile()
 
 
     Set utilWb = ThisWorkbook
-
-    ' TODO: Handle both in one
 
     If processType = "native" Then
         Set utilSheet = utilWb.Sheets("AllData-Data Transfer")
@@ -80,6 +79,7 @@ Sub ProcessWebsitesFromTextFile()
     ' Loop through all the specified websites
     For Each website In websiteList
         website = Trim(website)
+        rowsFound = False ' Reset rowsFound flag for each website
 
         If website <> "" Then
             On Error Resume Next
@@ -93,162 +93,174 @@ Sub ProcessWebsitesFromTextFile()
             If Not filterRange Is Nothing Then
                 filterRange.AutoFilter Field:=filterColumn, Criteria1:=website
 
-                'Create a new workbook
-                Set newWb = Workbooks.Add
-
-                'Copy filtered data to the new workbook
-                filterRange.SpecialCells(xlCellTypeVisible).Copy newWb.Sheets(1).Range("A1")
-
-                ' ** Data Validation Loop **
-                ' Here we check if any data is missing that should be included in the final output
-                Dim sourceLastRow As Long
-                sourceLastRow = newWb.Sheets(1).Cells(Rows.Count, "A").End(xlUp).Row
-
-                For i = 2 To sourceLastRow 'Start at row 2 to skip headers
-                    Dim missingColumns As String ' Buffer to store the missing column names
-
-                    missingColumns = "" ' Initialize the buffer
-                    
-                    ' Check if Project Code value is available
-                    If IsEmpty(newWb.Sheets(1).Cells(i, "C").Value) Then
-                        missingColumns = missingColumns & "Project Code, "
-                    End If
-
-                    ' Tier Checking
-                    Dim tierValue As String
-                    Dim tierCheck As Boolean ' Flag to determine if the tier condition is met
-
-                    ' Determine tier value and check based on process type
-                    If processType = "native" Then
-                        tierValue = newWb.Sheets(1).Cells(i, "D").Value ' Tier column for native
-                        tierCheck = (tierValue = "Large Tier" Or tierValue = "Large HA")  ' Parenthesis used to create readability
-                    ElseIf processType = "nextgen" Then
-                        tierValue = newWb.Sheets(1).Cells(i, "E").Value ' Tier column for nextgen
-                        tierCheck = (tierValue = "Large") ' Parenthesis used to create readability
-                    End If
-
-                    ' Check if the tier condition is met AND if K, L, or M are empty
-                    If tierCheck Then
-                        ' Check if CDN Cache value is available
-                        If IsEmpty(newWb.Sheets(1).Cells(i, "K").Value) Then
-                            missingColumns = missingColumns & "K, "
-                        End If
-
-                        ' Check if HA value is there
-                        If IsEmpty(newWb.Sheets(1).Cells(i, "L").Value) Then
-                            missingColumns = missingColumns & "L, "
-                        End If
-
-                        ' Check if Eligible for Discount value is there
-                        If IsEmpty(newWb.Sheets(1).Cells(i, "M").Value) Then
-                            missingColumns = missingColumns & "M, "
-                        End If
-                    End If
-                    
-
-                    ' Check if any columns were missing
-                    If missingColumns <> "" Then
-                        ' Remove the trailing comma and space
-                        missingColumns = Left(missingColumns, Len(missingColumns) - 2)
-
-                        missingDataWebsites = missingDataWebsites & website & " (Missing data: " & missingColumns & ")" & Chr(13) & Chr(10) ' Add website and missing columns to the list
-                        Exit For ' Break early if we find one row with missing data
-                    End If
-                Next i
-
-                ' ** Clean up **
-                ' In this section, we will clean up the data for the agencies
-
-                ' ** Jira Ticket Link Update **
-                ' Loop through each row in the new workbook and modify the Jira links
-                Dim jiraLastRow As Long, j As Long
-                jiraLastRow = newWb.Sheets(1).Cells(Rows.Count, "A").End(xlUp).Row ' Or use column Q if column A might have blank cells
-
-                For j = 2 To jiraLastRow ' Skip header row
-                    Dim jiraLink As String, extractedValue As String
-
-                    ' ** Remove Hyperlinks from Column Q **
-                    If newWb.Sheets(1).Cells(j, "Q").Hyperlinks.Count > 0 Then
-                        newWb.Sheets(1).Cells(j, "Q").Hyperlinks.Delete
-                    End If
-
-                    jiraLink = newWb.Sheets(1).Cells(j, "Q").Value ' Get value from column Q
-
-                    ' Check if the cell is not empty and is a valid URL
-                    If Not IsEmpty(jiraLink) And InStr(1, jiraLink, "https://jira.cwp2.cloudvanti.com/browse/") > 0 Then
-
-                        ' Extract the "$SOMETHING" portion
-                        extractedValue = Mid(jiraLink, InStrRev(jiraLink, "/") + 1)
-
-                        ' Construct the new Jira link
-                        newWb.Sheets(1).Cells(j, "Q").Value = "https://jira.cwp2.cloudvanti.com/servicedesk/customer/portal/1/" & extractedValue
-                    End If
-                Next j
-
-                
-                ' ** Delete Columns **
-                ' Make sure to delete RIGHT TO LEFT so columns won't shift
-                ' A is the recording date
-                ' N is either Has Subsite or Action
-                ' O is Total Base with Subsite
-                ' P is Remark
-                With newWb.Sheets(1)
-                    .Columns("P").Delete
-                    .Columns("O").Delete
-                    .Columns("N").Delete
-                    .Columns("A").Delete
-                End With
-
-                ' ** FORMATTING **
-                With newWb.Sheets(1).Range("A1:M" & newWb.Sheets(1).UsedRange.Rows.Count) ' Limit to columns A:M
-                    ' ** All Cells Formatting **
-                    .Cells.Interior.Color = RGB(255, 255, 255) ' White
-                    .Cells.Font.Color = RGB(0, 0, 0) ' Black
-                    .Cells.Font.Name = "Calibri"
-                    .Cells.Font.Size = 12
-                    .VerticalAlignment = xlCenter
-                    .HorizontalAlignment = xlCenter
-                    .Borders.LineStyle = xlContinuous
-                    .Borders.Weight = xlThin
-                End With
-
-                ' ** Header Row Formatting **
-                With newWb.Sheets(1).Range("A1:M1") ' Limit to columns A:M in the first row
-                    .Interior.Color = RGB(0, 148, 200)  ' Light Blue:  Could use a different shade of blue if desired.
-                    .Font.Color = RGB(255, 255, 255) ' White
-                End With
-
-                'Autofit columns and rows
-                With newWb.Sheets(1)
-                    .Columns.AutoFit
-                    .Rows.AutoFit
-                End With
-
-                ' ** MODIFIED SAVE FILE NAME **
-                'Get the value from column C of the FIRST visible row (after the header) in the filtered range
-                Dim projectCode As String
-                On Error Resume Next 'In case no visible rows exist after filter
-                projectCode = utilSheet.Range("C2:C" & lastRow).SpecialCells(xlCellTypeVisible)(1, 1).Value
-                On Error GoTo 0
-
-                If websiteType <> "Native" Then
-                    saveFileName = subfolderPath & "\" & websiteType & " - Additional Data Transfer - " & website & " - " & projectCode & ".xlsx"
+                ' ** CHECK IF ANY ROWS WERE FOUND **
+                ' Range has to be set to A1:A because if you call count on an empty range,
+                ' Excel will throw an error.
+                If utilSheet.Range("A1:A" & lastRow).SpecialCells(xlCellTypeVisible).Count > 1 Then
+                    rowsFound = True ' Set rowsFound flag to True if rows were found
                 Else
-                    saveFileName = subfolderPath & "\" & websiteType & " - Additional Data Transfer - " & website & ".xlsx"
+                    rowsFound = False ' No rows were found
                 End If
 
+                If rowsFound Then  'Only process if rows were found
+                    'Create a new workbook
+                    Set newWb = Workbooks.Add
 
-                On Error Resume Next
-                Application.DisplayAlerts = False ' Disable alerts for overwriting
-                newWb.SaveAs Filename:=saveFileName, FileFormat:=xlOpenXMLWorkbook
-                Application.DisplayAlerts = True ' Re-enable alerts
-                newWb.Close SaveChanges:=False 'Close without saving changes (avoids prompts)
-                If Err.Number <> 0 Then
-                    MsgBox "Error saving file (" & saveFileName & "): " & Err.Description, vbCritical
-                End If
-                On Error GoTo 0
+                    'Copy filtered data to the new workbook
+                    filterRange.SpecialCells(xlCellTypeVisible).Copy newWb.Sheets(1).Range("A1")
+
+                    ' ** Data Validation Loop **
+                    ' Here we check if any data is missing that should be included in the final output
+                    Dim sourceLastRow As Long
+                    sourceLastRow = newWb.Sheets(1).Cells(Rows.Count, "A").End(xlUp).Row
+
+                    For i = 2 To sourceLastRow 'Start at row 2 to skip headers
+                        Dim missingColumns As String ' Buffer to store the missing column names
+
+                        missingColumns = "" ' Initialize the buffer
+
+                        ' Check if Project Code value is available
+                        If IsEmpty(newWb.Sheets(1).Cells(i, "C").Value) Then
+                            missingColumns = missingColumns & "Project Code, "
+                        End If
+
+                        ' Tier Checking
+                        Dim tierValue As String
+                        Dim tierCheck As Boolean ' Flag to determine if the tier condition is met
+
+                        ' Determine tier value and check based on process type
+                        If processType = "native" Then
+                            tierValue = newWb.Sheets(1).Cells(i, "D").Value ' Tier column for native
+                            tierCheck = (tierValue = "Large Tier" Or tierValue = "Large HA")  ' Parenthesis used to create readability
+                        ElseIf processType = "nextgen" Then
+                            tierValue = newWb.Sheets(1).Cells(i, "E").Value ' Tier column for nextgen
+                            tierCheck = (tierValue = "Large") ' Parenthesis used to create readability
+                        End If
+
+                        ' Check if the tier condition is met AND if K, L, or M are empty
+                        If tierCheck Then
+                            ' Check if CDN Cache value is available
+                            If IsEmpty(newWb.Sheets(1).Cells(i, "K").Value) Then
+                                missingColumns = missingColumns & "K, "
+                            End If
+
+                            ' Check if HA value is there
+                            If IsEmpty(newWb.Sheets(1).Cells(i, "L").Value) Then
+                                missingColumns = missingColumns & "L, "
+                            End If
+
+                            ' Check if Eligible for Discount value is there
+                            If IsEmpty(newWb.Sheets(1).Cells(i, "M").Value) Then
+                                missingColumns = missingColumns & "M, "
+                            End If
+                        End If
+
+
+                        ' Check if any columns were missing
+                        If missingColumns <> "" Then
+                            ' Remove the trailing comma and space
+                            missingColumns = Left(missingColumns, Len(missingColumns) - 2)
+
+                            missingDataWebsites = missingDataWebsites & website & " (Missing data: " & missingColumns & ")" & Chr(13) & Chr(10) ' Add website and missing columns to the list
+                            Exit For ' Break early if we find one row with missing data
+                        End If
+                    Next i
+
+                    ' ** Clean up **
+                    ' In this section, we will clean up the data for the agencies
+
+                    ' ** Jira Ticket Link Update **
+                    ' Loop through each row in the new workbook and modify the Jira links
+                    Dim jiraLastRow As Long, j As Long
+                    jiraLastRow = newWb.Sheets(1).Cells(Rows.Count, "A").End(xlUp).Row ' Or use column Q if column A might have blank cells
+
+                    For j = 2 To jiraLastRow ' Skip header row
+                        Dim jiraLink As String, extractedValue As String
+
+                        ' ** Remove Hyperlinks from Column Q **
+                        If newWb.Sheets(1).Cells(j, "Q").Hyperlinks.Count > 0 Then
+                            newWb.Sheets(1).Cells(j, "Q").Hyperlinks.Delete
+                        End If
+
+                        jiraLink = newWb.Sheets(1).Cells(j, "Q").Value ' Get value from column Q
+
+                        ' Check if the cell is not empty and is a valid URL
+                        If Not IsEmpty(jiraLink) And InStr(1, jiraLink, "https://jira.cwp2.cloudvanti.com/browse/") > 0 Then
+
+                            ' Extract the "$SOMETHING" portion
+                            extractedValue = Mid(jiraLink, InStrRev(jiraLink, "/") + 1)
+
+                            ' Construct the new Jira link
+                            newWb.Sheets(1).Cells(j, "Q").Value = "https://jira.cwp2.cloudvanti.com/servicedesk/customer/portal/1/" & extractedValue
+                        End If
+                    Next j
+
+
+                    ' ** Delete Columns **
+                    ' Make sure to delete RIGHT TO LEFT so columns won't shift
+                    ' A is the recording date
+                    ' N is either Has Subsite or Action
+                    ' O is Total Base with Subsite
+                    ' P is Remark
+                    With newWb.Sheets(1)
+                        .Columns("P").Delete
+                        .Columns("O").Delete
+                        .Columns("N").Delete
+                        .Columns("A").Delete
+                    End With
+
+                    ' ** FORMATTING **
+                    With newWb.Sheets(1).Range("A1:M" & newWb.Sheets(1).UsedRange.Rows.Count) ' Limit to columns A:M
+                        ' ** All Cells Formatting **
+                        .Cells.Interior.Color = RGB(255, 255, 255) ' White
+                        .Cells.Font.Color = RGB(0, 0, 0) ' Black
+                        .Cells.Font.Name = "Calibri"
+                        .Cells.Font.Size = 12
+                        .VerticalAlignment = xlCenter
+                        .HorizontalAlignment = xlCenter
+                        .Borders.LineStyle = xlContinuous
+                        .Borders.Weight = xlThin
+                    End With
+
+                    ' ** Header Row Formatting **
+                    With newWb.Sheets(1).Range("A1:M1") ' Limit to columns A:M in the first row
+                        .Interior.Color = RGB(0, 148, 200)  ' Light Blue:  Could use a different shade of blue if desired.
+                        .Font.Color = RGB(255, 255, 255) ' White
+                    End With
+
+                    'Autofit columns and rows
+                    With newWb.Sheets(1)
+                        .Columns.AutoFit
+                        .Rows.AutoFit
+                    End With
+
+                    ' ** MODIFIED SAVE FILE NAME **
+                    'Get the value from column C of the FIRST visible row (after the header) in the filtered range
+                    Dim projectCode As String
+                    On Error Resume Next 'In case no visible rows exist after filter
+                    projectCode = utilSheet.Range("C2:C" & lastRow).SpecialCells(xlCellTypeVisible)(1, 1).Value
+                    On Error GoTo 0
+
+                    If websiteType <> "Native" Then
+                        saveFileName = subfolderPath & "\" & websiteType & " - Additional Data Transfer - " & website & " - " & projectCode & ".xlsx"
+                    Else
+                        saveFileName = subfolderPath & "\" & websiteType & " - Additional Data Transfer - " & website & ".xlsx"
+                    End If
+
+
+                    On Error Resume Next
+                    Application.DisplayAlerts = False ' Disable alerts for overwriting
+                    newWb.SaveAs Filename:=saveFileName, FileFormat:=xlOpenXMLWorkbook
+                    Application.DisplayAlerts = True ' Re-enable alerts
+                    newWb.Close SaveChanges:=False 'Close without saving changes (avoids prompts)
+                    If Err.Number <> 0 Then
+                        MsgBox "Error saving file (" & saveFileName & "): " & Err.Description, vbCritical
+                    End If
+                    On Error GoTo 0
+                End If  'End if rows found
 
                 utilSheet.AutoFilterMode = False
+
             Else
                 MsgBox "No data found or invalid Filter Range", vbCritical, "Error"
             End If
@@ -274,4 +286,3 @@ Sub ProcessWebsitesFromTextFile()
     ' Tell Excel to continue updating the screen to show the user the result
     Application.ScreenUpdating = True
 End Sub
-
