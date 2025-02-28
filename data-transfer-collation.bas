@@ -14,7 +14,7 @@ Sub ProcessWebsitesFromTextFile()
     Dim processType As String ' "Native" or "NextGen"
     Dim filterColumn As Long ' Column to filter website from source data (Native=3, NextGen=4)
     Dim tierColumn As Long    ' Column to get tier data (Native=4, NextGen=5)
-    Dim columnC_Name As String
+    Dim websiteType As String
 
     ' ** Input Box to Choose Native or NextGen **
     processType = InputBox("Enter 'Native' or 'NextGen':", "Select Process Type", "Native")
@@ -35,13 +35,13 @@ Sub ProcessWebsitesFromTextFile()
         Set utilSheet = utilWb.Sheets("AllData-Data Transfer")
         filterColumn = 3 ' Column C contains websites for Native
         tierColumn = 4 ' Column D contains tier for Native
-        columnC_Name = "Native"
+        websiteType = "Native"
 
     ElseIf processType = "nextgen" Then
         Set utilSheet = utilWb.Sheets("AllData-Data Transfer NG")
         filterColumn = 4 ' Column D contains websites for NextGen
         tierColumn = 5 ' Column E contains tier for NextGen
-        columnC_Name = "NextGen"
+        websiteType = "NextGen"
 
     End If
 
@@ -118,19 +118,24 @@ Sub ProcessWebsitesFromTextFile()
 
                         missingColumns = "" ' Initialize the buffer
                         
+                        ' Check if Project Code value is available
+                        If IsEmpty(newWb.Sheets(1).Cells(i, "C").Value) Then
+                            missingColumns = missingColumns & "Project Code, "
+                        End If
+                        
                         ' Check if CDN Cache value is available
                         If IsEmpty(newWb.Sheets(1).Cells(i, "K").Value) Then
-                            missingColumns = missingColumns & "K, "
+                            missingColumns = missingColumns & ", "
                         End If
 
                         ' Check if HA value is there
                         If IsEmpty(newWb.Sheets(1).Cells(i, "L").Value) Then
-                            missingColumns = missingColumns & "L, "
+                            missingColumns = missingColumns & "CDN Cache %, "
                         End If
 
                         ' Check if Eligible for Discount value is there
                         If IsEmpty(newWb.Sheets(1).Cells(i, "M").Value) Then
-                            missingColumns = missingColumns & "M, "
+                            missingColumns = missingColumns & "Eligible for Discount?, "
                         End If
 
                         ' Check if any columns were missing
@@ -138,14 +143,16 @@ Sub ProcessWebsitesFromTextFile()
                             ' Remove the trailing comma and space
                             missingColumns = Left(missingColumns, Len(missingColumns) - 2)
 
-                            missingDataWebsites = missingDataWebsites & website & " (Missing columns: " & missingColumns & ")" & Chr(13) & Chr(10) ' Add website and missing columns to the list
-                            Exit For ' Break early if we find one row with missing data
+                            missingDataWebsites = missingDataWebsites & "Row " & i & ": " & website & " (Missing data: " & missingColumns & ")" & Chr(13) & Chr(10) ' Add website and missing columns to the list
+                            'Exit For ' Break early if we find one row with missing data
                         End If
                     End If
                 Next i
 
                 ' ** Clean up **
                 ' In this section, we will clean up the data for the agencies
+                
+                ' TODO: Calculate the data transfer cost column values (=H1*1490)
                 
                 ' TODO: Change the Jira Ticket Links
                 
@@ -171,9 +178,9 @@ Sub ProcessWebsitesFromTextFile()
                 On Error GoTo 0
 
                 If columnCValue = "" Then
-                    saveFileName = columnC_Name & " - Additional Data Transfer - " & website & ".xlsx"
+                    saveFileName = websiteType & " - Additional Data Transfer - " & website & ".xlsx"
                 Else
-                    saveFileName = columnC_Name & " - Additional Data Transfer - " & website & " - " & columnCValue & ".xlsx"
+                    saveFileName = websiteType & " - Additional Data Transfer - " & website & " - " & columnCValue & ".xlsx"
                 End If
 
 
@@ -195,19 +202,19 @@ Sub ProcessWebsitesFromTextFile()
     Next website
 
     ' ** Create output text file **
-    outputFilePath = ThisWorkbook.Path & "\missing-data-report-" & columnC_Name & ".txt" ' Save in the same directory as the Excel file
+    outputFilePath = ThisWorkbook.Path & "\missing-data-report-" & websiteType & ".txt" ' Save in the same directory as the Excel file
 
     If missingDataWebsites <> "" Then ' Only create file if there are websites with missing data
 
         outputFileNum = FreeFile
         Open outputFilePath For Output As #outputFileNum
-        Print #outputFileNum, "Websites with missing data in Columns K, L, or M when Column D is 'Large Tier' or 'Large HA':" & Chr(13) & Chr(10)
+        Print #outputFileNum, "Websites with missing data:" & Chr(13) & Chr(10)
         Print #outputFileNum, missingDataWebsites
         Close #outputFileNum
 
         MsgBox "Done processing the websites.  A report has been generated at " & outputFilePath, vbInformation
     Else
-        MsgBox "Done processing the websites. No missing data found for Large Tier/HA sites.", vbInformation
+        MsgBox "Done processing the websites. No missing data found.", vbInformation
     End If
 
 End Sub
