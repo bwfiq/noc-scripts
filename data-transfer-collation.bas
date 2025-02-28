@@ -102,6 +102,15 @@ Sub ProcessWebsitesFromTextFile()
                 sourceLastRow = newWb.Sheets(1).Cells(Rows.Count, "A").End(xlUp).Row
 
                 For i = 2 To sourceLastRow 'Start at row 2 to skip headers
+                    Dim missingColumns As String ' Buffer to store the missing column names
+
+                    missingColumns = "" ' Initialize the buffer
+                    
+                    ' Check if Project Code value is available
+                    If IsEmpty(newWb.Sheets(1).Cells(i, "C").Value) Then
+                        missingColumns = missingColumns & "Project Code, "
+                    End If
+                    
                     ' Tier Checking
                     Dim tierValue As String
                     Dim tierCheck As Boolean ' Flag to determine if the tier condition is met
@@ -116,39 +125,31 @@ Sub ProcessWebsitesFromTextFile()
                     End If
 
                     ' Check if the tier condition is met AND if K, L, or M are empty
-                    If tierCheck Then
-                        Dim missingColumns As String ' Buffer to store the missing column names
-
-                        missingColumns = "" ' Initialize the buffer
-                        
-                        ' Check if Project Code value is available
-                        If IsEmpty(newWb.Sheets(1).Cells(i, "C").Value) Then
-                            missingColumns = missingColumns & "Project Code, "
-                        End If
-                        
+                    If tierCheck Then                        
                         ' Check if CDN Cache value is available
                         If IsEmpty(newWb.Sheets(1).Cells(i, "K").Value) Then
-                            missingColumns = missingColumns & ", "
+                            missingColumns = missingColumns & "K, "
                         End If
 
                         ' Check if HA value is there
                         If IsEmpty(newWb.Sheets(1).Cells(i, "L").Value) Then
-                            missingColumns = missingColumns & "CDN Cache %, "
+                            missingColumns = missingColumns & "L, "
                         End If
 
                         ' Check if Eligible for Discount value is there
                         If IsEmpty(newWb.Sheets(1).Cells(i, "M").Value) Then
-                            missingColumns = missingColumns & "Eligible for Discount?, "
+                            missingColumns = missingColumns & "M, "
                         End If
+                    End If
+                    
 
-                        ' Check if any columns were missing
-                        If missingColumns <> "" Then
-                            ' Remove the trailing comma and space
-                            missingColumns = Left(missingColumns, Len(missingColumns) - 2)
+                    ' Check if any columns were missing
+                    If missingColumns <> "" Then
+                        ' Remove the trailing comma and space
+                        missingColumns = Left(missingColumns, Len(missingColumns) - 2)
 
-                            missingDataWebsites = missingDataWebsites & "Row " & i & ": " & website & " (Missing data: " & missingColumns & ")" & Chr(13) & Chr(10) ' Add website and missing columns to the list
-                            'Exit For ' Break early if we find one row with missing data
-                        End If
+                        missingDataWebsites = missingDataWebsites & "Row " & i & ": " & website & " (Missing data: " & missingColumns & ")" & Chr(13) & Chr(10) ' Add website and missing columns to the list
+                        'Exit For ' Break early if we find one row with missing data
                     End If
                 Next i
 
@@ -191,7 +192,7 @@ Sub ProcessWebsitesFromTextFile()
                 Application.DisplayAlerts = True ' Re-enable alerts
                 newWb.Close SaveChanges:=False 'Close without saving changes (avoids prompts)
                 If Err.Number <> 0 Then
-                    MsgBox "Error saving file: " & Err.Description, vbCritical
+                    MsgBox "Error saving file (" & saveFileName & "): " & Err.Description, vbCritical
                 End If
                 On Error GoTo 0
 
