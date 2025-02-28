@@ -99,30 +99,47 @@ Sub ProcessWebsitesFromTextFile()
                 sourceLastRow = newWb.Sheets(1).Cells(Rows.Count, "A").End(xlUp).Row
 
                 For i = 2 To sourceLastRow 'Start at row 2 to skip headers
+                    ' Tier Checking
                     Dim tierValue As String
+                    Dim tierCheck As Boolean ' Flag to determine if the tier condition is met
 
+                    ' Determine tier value and check based on process type
                     If processType = "native" Then
-                        tierValue = newWb.Sheets(1).Cells(i, "D").Value
-                        If tierValue = "Large Tier" Or tierValue = "Large HA" Then
-                           If IsEmpty(newWb.Sheets(1).Cells(i, "K").Value) Or _
-                              IsEmpty(newWb.Sheets(1).Cells(i, "L").Value) Or _
-                              IsEmpty(newWb.Sheets(1).Cells(i, "M").Value) Then
-                                ' TODO: Split this into multiple outputs with a buffer
-                                missingDataWebsites = missingDataWebsites & website & " - missing CDN cache etc" & Chr(13) & Chr(10) 'Add website to the list
-                                Exit For 'Break early if we find one row
-                            End If
+                        tierValue = newWb.Sheets(1).Cells(i, "D").Value ' Tier column for native
+                        tierCheck = (tierValue = "Large Tier" Or tierValue = "Large HA")  ' Parenthesis used to create readability
+                    ElseIf processType = "nextgen" Then
+                        tierValue = newWb.Sheets(1).Cells(i, "E").Value ' Tier column for nextgen
+                        tierCheck = (tierValue = "Large") ' Parenthesis used to create readability
+                    End If
+
+                    ' Check if the tier condition is met AND if K, L, or M are empty
+                    If tierCheck Then
+                        Dim missingColumns As String ' Buffer to store the missing column names
+
+                        missingColumns = "" ' Initialize the buffer
+                        
+                        ' Check if CDN Cache value is available
+                        If IsEmpty(newWb.Sheets(1).Cells(i, "K").Value) Then
+                            missingColumns = missingColumns & "K, "
                         End If
 
-                    ElseIf processType = "nextgen" Then
-                         tierValue = newWb.Sheets(1).Cells(i, "E").Value
-                        If tierValue = "Large" Then
-                             If IsEmpty(newWb.Sheets(1).Cells(i, "K").Value) Or _
-                                IsEmpty(newWb.Sheets(1).Cells(i, "L").Value) Or _
-                                IsEmpty(newWb.Sheets(1).Cells(i, "M").Value) Then
+                        ' Check if HA value is there
+                        If IsEmpty(newWb.Sheets(1).Cells(i, "L").Value) Then
+                            missingColumns = missingColumns & "L, "
+                        End If
 
-                                  missingDataWebsites = missingDataWebsites & website & Chr(13) & Chr(10) 'Add website to the list
-                                  Exit For 'Break early if we find one row
-                             End If
+                        ' Check if Eligible for Discount value is there
+                        If IsEmpty(newWb.Sheets(1).Cells(i, "M").Value) Then
+                            missingColumns = missingColumns & "M, "
+                        End If
+
+                        ' Check if any columns were missing
+                        If missingColumns <> "" Then
+                            ' Remove the trailing comma and space
+                            missingColumns = Left(missingColumns, Len(missingColumns) - 2)
+
+                            missingDataWebsites = missingDataWebsites & website & " (Missing columns: " & missingColumns & ")" & Chr(13) & Chr(10) ' Add website and missing columns to the list
+                            Exit For ' Break early if we find one row with missing data
                         End If
                     End If
                 Next i
