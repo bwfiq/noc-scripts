@@ -1,9 +1,5 @@
 import os
-
-
-def cat_file_from_env(env_var_name):
-    file_path = os.environ[env_var_name]
-    print(parse_file_path_as_text(file_path))
+from jira import JIRA
 
 
 def parse_file_path_as_text(file_path):
@@ -15,5 +11,8 @@ def parse_file_path_as_text(file_path):
 
 
 if __name__ == "__main__":
-    cat_file_from_env("CWP_JIRA_LINK_FILE")
-    cat_file_from_env("CWP_JIRA_ACCESS_KEY_FILE")
+    jira_link = parse_file_path_as_text(os.environ["CWP_JIRA_LINK_FILE"])
+    jira_pat = parse_file_path_as_text(os.environ["CWP_JIRA_ACCESS_KEY_FILE"])
+    jira = JIRA(server=jira_link, token_auth=jira_pat)
+    issue = jira.issue("CWP1330991-9")
+    print(issue.fields.summary)
