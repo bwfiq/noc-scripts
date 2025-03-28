@@ -117,7 +117,7 @@ def process_issue(jira, issue_key, link_issue_key):
 
 def main():
     jira_link = parse_file_path_as_text(os.environ["CWP_JIRA_LINK_FILE"])
-    jira_pat = parse_file_path_as_text(os.environ["CWP_JIRA_ACCESS_KEY_FILE"])
+    jira_pat = parse_file_path_as_text(os.environ["CWP_JIRA_PAT_FILE"])
     jira = JIRA(server=jira_link, token_auth=jira_pat)
 
     link_issue_key = input("Enter the issue key to link to: ").strip()
