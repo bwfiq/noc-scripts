@@ -30,8 +30,15 @@ def main():
         maxResults=100,
     ):
         latest_comment = get_latest_comment_object(issue)
-        if latest_comment and latest_comment.author.displayName not in TSEList:
-            print(f"{issue.key}: {latest_comment.author.displayName}")
+        if latest_comment:
+            if latest_comment.author.displayName not in TSEList:
+                print(f"{issue.key}: {latest_comment.author.displayName}")
+            else:
+                # Latest comment is from TSE - Happy Path
+                continue
+        elif issue.fields.reporter and issue.fields.reporter.displayName not in TSEList:
+            print(f"{issue.key}: {issue.fields.reporter.displayName}")
+            continue
     # def empty list
     # For each:
     # Check who made the last comment
