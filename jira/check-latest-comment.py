@@ -24,21 +24,27 @@ def main():
         "jimi.mirza",
         "Xavier Selvanathan (XTR)",
     ]
+    SecTeamList = [
+        "Praveen Kumar Reddy (XTR)",
+        "Larrie Ng (XTR)",
+        "Mikhael Artur Darmakesuma (XTR)",
+    ]
     # Get all issues that are not closed
     for issue in jira.search_issues(
         'project != CWPEVT and status not in (Closed, "Pending Clarification", Resolved)  ORDER BY created DESC',
         maxResults=100,
     ):
         latest_comment = get_latest_comment_object(issue)
+
         if latest_comment:
-            if latest_comment.author.displayName not in TSEList:
-                print(f"{issue.key}: {latest_comment.author.displayName}")
-            else:
-                # Latest comment is from TSE - Happy Path
-                continue
-        elif issue.fields.reporter and issue.fields.reporter.displayName not in TSEList:
-            print(f"{issue.key}: {issue.fields.reporter.displayName}")
-            continue
+            nameToCheck = latest_comment.author.displayName
+        else:
+            nameToCheck = issue.fields.reporter.displayName
+
+            if (
+                nameToCheck not in SecTeamList and issue.fields.project.name == "CWPGVT"
+            ) or (issue.fields.project.name != "CWPGVT" and nameToCheck not in TSEList):
+                print(f'FYA: {issue.key}: "{nameToCheck}"')
     # def empty list
     # For each:
     # Check who made the last comment
