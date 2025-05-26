@@ -3,6 +3,19 @@ import sys
 from jira import JIRA
 
 
+def check_issues(jira, list):
+    noIssues = True
+    for issue in jira.search_issues(
+        'project != CWPEVT and status not in (Closed, "Pending Clarification", Resolved) ORDER BY created DESC',
+        maxResults=100,
+    ):
+        if get_name_to_check(jira, issue) not in list:
+            noIssues = False
+            print(f'{os.environ["CVT_JIRA_LINK"]}/browse/{issue.key}: "{nameToCheck}"')
+    if noIssues:
+        print("Found no issues.")
+
+
 def get_name_to_check(jira, issue):
     latest_comment = get_latest_comment_object(jira, issue)
     if latest_comment:
@@ -62,13 +75,7 @@ def main():
         "Kanimozhi Nallatamby (XTR)",
         "Ravishankar CHANDRASHEKAR (GVT)",
     ]
-    for issue in jira.search_issues(
-        'project != CWPEVT and status not in (Closed, "Pending Clarification", Resolved) ORDER BY created DESC',
-        maxResults=100,
-    ):
-        nameToCheck = get_name_to_check(jira, issue)
-        if nameToCheck not in TSEList:
-            print(f'{os.environ["CVT_JIRA_LINK"]}/browse/{issue.key}: "{nameToCheck}"')
+    check_issues(jira, TSEList)
 
 
 if __name__ == "__main__":
