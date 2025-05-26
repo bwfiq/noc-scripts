@@ -56,8 +56,6 @@ def main():
         "Wilson Lim (XTR)",
         "Hadif Aiman Khalid (XTR)",
         "linda.micheal",
-    ]
-    SecTeamList = [
         "Praveen Kumar Reddy (XTR)",
         "Larrie Ng (XTR)",
         "Mikhael Artur Darmakesuma (XTR)",
@@ -69,11 +67,7 @@ def main():
         maxResults=100,
     ):
         nameToCheck = get_name_to_check(jira, issue)
-        if (
-            nameToCheck not in SecTeamList
-            and nameToCheck not in TSEList
-            and issue.fields.project.name == "CWPGVT"
-        ) or (issue.fields.project.name != "CWPGVT" and nameToCheck not in TSEList):
+        if nameToCheck not in TSEList:
             print(f'{os.environ["CVT_JIRA_LINK"]}/browse/{issue.key}: "{nameToCheck}"')
 
 
