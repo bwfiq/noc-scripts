@@ -3,53 +3,36 @@ import sys
 from jira import JIRA
 
 
-def get_members_recursive(obj, indent=0):
-    """
-    Recursively prints attributes and methods of an object, including class members.
-
-    Args:
-        obj: The object to inspect.
-        indent: The indentation level for the output.
-    """
-    indent_str = "  " * indent
-    print(
-        f"{indent_str}Attributes of {type(obj).__name__}:"
-    )  # Use type(obj).__name__ to display class name
-
-    for item in dir(obj):
-        if not item.startswith("__"):
-            try:
-                attribute = getattr(obj, item)
-                if callable(attribute):
-                    print(f"{indent_str}  {item}: <method>")
-                elif isinstance(attribute, type):  # Check if it's a class (type object)
-                    print(f"{indent_str}  {item}: <class {attribute.__name__}>")
-                    # Recursive call for nested classes
-                    get_members_recursive(
-                        attribute, indent + 1
-                    )  # Pass the class itself
-                else:
-                    print(f"{indent_str}  {item}: {attribute}")
-            except AttributeError:
-                print(f"{indent_str}  {item}: (Unable to access)")
-
-
-def get_name_to_check(issue):
-    latest_comment = get_latest_comment_object(issue)
+def get_name_to_check(jira, issue):
+    latest_comment = get_latest_comment_object(jira, issue)
     if latest_comment:
-        print("==================")
-        get_members_recursive(latest_comment)
         nameToCheck = latest_comment.author.displayName
     else:
         nameToCheck = issue.fields.reporter.displayName
     return nameToCheck
 
 
-def get_latest_comment_object(issue):
-    comments = issue.fields.comment.comments
+def get_latest_comment_object(jira, issue):
+    comments = jira.comments(issue, expand="properties")
     if not comments:
         return None
-    return comments[-1]
+    for comment in reversed(comments):  # Iterate backwards to find the *latest* comment
+        isInternal = False
+        # sd.public.comment is "internal", True means internal
+        # sd.allow.public.comment is "allow", True means not internal
+        for property in comment.properties:
+            if property.key == "sd.public.comment" and hasattr(
+                property.value, "internal"
+            ):
+                isInternal = property.value.internal
+            elif property.key == "sd.allow.public.comment" and hasattr(
+                property.value, "allow"
+            ):
+                isInternal = not property.value.allow
+        if not isInternal:
+            return comment
+    # If all comments are internal?
+    return None
 
 
 def main():
@@ -72,24 +55,26 @@ def main():
         "jeganathan.naigam",
         "Wilson Lim (XTR)",
         "Hadif Aiman Khalid (XTR)",
+        "linda.micheal",
     ]
     SecTeamList = [
         "Praveen Kumar Reddy (XTR)",
         "Larrie Ng (XTR)",
         "Mikhael Artur Darmakesuma (XTR)",
         "Kanimozhi Nallatamby (XTR)",
+        "Ravishankar CHANDRASHEKAR (GVT)",
     ]
     for issue in jira.search_issues(
         'project != CWPEVT and status not in (Closed, "Pending Clarification", Resolved) ORDER BY created DESC',
-        maxResults=10,
+        maxResults=100,
     ):
-        nameToCheck = get_name_to_check(issue)
+        nameToCheck = get_name_to_check(jira, issue)
         if (
             nameToCheck not in SecTeamList
             and nameToCheck not in TSEList
             and issue.fields.project.name == "CWPGVT"
         ) or (issue.fields.project.name != "CWPGVT" and nameToCheck not in TSEList):
-            print(f'FYA: {issue.key}: "{nameToCheck}"')
+            print(f'{os.environ["CVT_JIRA_LINK"]}/browse/{issue.key}: "{nameToCheck}"')
 
 
 if __name__ == "__main__":
