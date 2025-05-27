@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 import os
 import sys
 from jira import JIRA
@@ -9,7 +11,8 @@ def check_issues(jira, list):
         'project != CWPEVT and status not in (Closed, "Pending Clarification", Resolved) ORDER BY created DESC',
         maxResults=100,
     ):
-        if get_name_to_check(jira, issue) not in list:
+        nameToCheck = get_name_to_check(jira, issue)
+        if nameToCheck not in list:
             noIssues = False
             print(f'{os.environ["CVT_JIRA_LINK"]}/browse/{issue.key}: "{nameToCheck}"')
     if noIssues:
@@ -25,11 +28,13 @@ def get_name_to_check(jira, issue):
     return nameToCheck
 
 
-def get_latest_comment_object(jira, issue):
+def get_latest_comment_object(jira, issue, excludeInternal=True):
     comments = jira.comments(issue, expand="properties")
     if not comments:
         return None
     for comment in reversed(comments):  # Iterate backwards to find the *latest* comment
+        if not excludeInternal:
+            return comment
         isInternal = False
         # sd.public.comment is "internal", True means internal
         # sd.allow.public.comment is "allow", True means not internal
