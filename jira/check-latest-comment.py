@@ -2,6 +2,7 @@
 
 import os
 import sys
+import json  # Import the json module
 from jira import JIRA
 
 
@@ -53,33 +54,33 @@ def get_latest_comment_object(jira, issue, excludeInternal=True):
     return None
 
 
+def load_tse_list(filepath="tse_list.json"):
+    """Loads the TSE list from a JSON file.
+
+    Args:
+        filepath: The path to the JSON file.  Defaults to "tse_list.json".
+
+    Returns:
+        A list of TSE names, or an empty list if the file doesn't exist or
+        contains invalid data.
+    """
+    try:
+        with open(filepath, "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"TSE list file not found at {filepath}.  Using an empty list.")
+        return []
+    except json.JSONDecodeError:
+        print(f"Error decoding JSON from {filepath}.  Using an empty list.")
+        return []
+
+
 def main():
     jira = JIRA(
         server=os.environ["CVT_JIRA_LINK"], token_auth=os.environ["CVT_JIRA_KEY"]
     )
-    TSEList = [
-        "mohammad.rafiq",
-        "karishmma",
-        "vinotheni",
-        "piramilah",
-        "taqiuddin",
-        "jimi.mirza",
-        "Xavier Selvanathan (XTR)",
-        "Zhao Bozhi (XTR)",
-        "C. Egaatharshinee (XTR)",
-        "Nazirul Bin Zailani (XTR)",
-        "S. Regan (XTR)",
-        "aina",
-        "jeganathan.naigam",
-        "Wilson Lim (XTR)",
-        "Hadif Aiman Khalid (XTR)",
-        "linda.micheal",
-        "Praveen Kumar Reddy (XTR)",
-        "Larrie Ng (XTR)",
-        "Mikhael Artur Darmakesuma (XTR)",
-        "Kanimozhi Nallatamby (XTR)",
-        "Ravishankar CHANDRASHEKAR (GVT)",
-    ]
+    # Load the TSE list from a JSON file
+    TSEList = load_tse_list()
     check_issues(jira, TSEList)
 
 
